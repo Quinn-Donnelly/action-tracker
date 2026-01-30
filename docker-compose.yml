@@ -1,0 +1,42 @@
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: action-tracker-db
+    environment:
+      POSTGRES_DB: action_tracker
+      POSTGRES_USER: tracker_user
+      POSTGRES_PASSWORD: tracker_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tracker_user -d action_tracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - action-tracker-network
+
+  api:
+    build: .
+    container_name: action-tracker-api
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://tracker_user:tracker_password@timescaledb:5432/action_tracker?sslmode=disable
+      PORT: 8080
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    restart: on-failure
+    networks:
+      - action-tracker-network
+
+volumes:
+  timescaledb_data:
+
+networks:
+  action-tracker-network:
+    driver: bridge
