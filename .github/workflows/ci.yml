@@ -14,17 +14,12 @@ jobs:
           POSTGRES_DB: action_tracker_test
           POSTGRES_USER: tracker_user
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
+          --health-cmd "pg_isready -U tracker_user -d action_tracker_test"
+          --health-interval 2s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
         ports:
           - 5432:5432
-        healthcheck:
-          test: ["CMD-SHELL", "pg_isready -U tracker_user -d action_tracker_test"]
-          interval: 2s
-          timeout: 5s
-          retries: 10
 
     steps:
       - name: Checkout code
