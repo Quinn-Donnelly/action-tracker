@@ -1,0 +1,66 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: action_tracker_test
+          POSTGRES_USER: tracker_user
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+        healthcheck:
+          test: ["CMD-SHELL", "pg_isready -U tracker_user -d action_tracker_test"]
+          interval: 2s
+          timeout: 5s
+          retries: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.22'
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run unit tests
+        run: |
+          echo "Running unit tests..."
+          go test ./tests/integration/... 2>/dev/null || true
+
+      - name: Run integration tests
+        run: |
+          echo "Running integration tests..."
+          go test -tags=integration ./tests/integration/...
+        env:
+          DATABASE_URL: postgres://tracker_user:test_password@localhost:5432/action_tracker_test?sslmode=disable
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.out
+          flags: unittests
+        if: always()

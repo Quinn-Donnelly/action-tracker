@@ -1,0 +1,22 @@
+services:
+  test-db:
+    image: timescale/timescaledb:latest-pg15
+    container_name: action-tracker-test-db
+    environment:
+      POSTGRES_DB: action_tracker_test
+      POSTGRES_USER: tracker_user
+      POSTGRES_PASSWORD: test_password
+    ports:
+      - "5433:5432"
+    tmpfs: /var/lib/postgresql/data  # Fresh database each test run
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tracker_user -d action_tracker_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge
